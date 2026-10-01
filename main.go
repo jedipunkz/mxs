@@ -16,7 +16,7 @@ import (
 
 const usage = `usage:
   mxs bedrock <gamertag>                             Bedrock player info
-  mxs bedrock -r <xuid | floodgate uuid>             Bedrock player info
+  mxs bedrock -r <xuid | hex xuid | floodgate uuid>  Bedrock player info
   mxs java <account name>                            Java player info
   mxs java -r <uuid>                                 Java player info`
 
@@ -78,12 +78,19 @@ func bedrockInfo(gamertag string, xuid uint64) string {
 	return fmt.Sprintf("Gamertag: %s\nXUID(DEC): %d\nXUID(HEX): %x\nFloodgate UUID: %s", gamertag, xuid, xuid, floodgateUUID(xuid))
 }
 
-// parseXUID accepts a decimal XUID or a Floodgate UUID.
+// parseXUID accepts a decimal XUID, a hex XUID, or a Floodgate UUID.
+// ponytail: digits-only input is read as decimal; a digits-only hex XUID needs the 0x prefix.
 func parseXUID(s string) (uint64, error) {
 	if strings.Contains(s, "-") {
 		return parseFloodgateUUID(s)
 	}
-	xuid, err := strconv.ParseUint(s, 10, 64)
+	h, prefixed := strings.CutPrefix(strings.ToLower(s), "0x")
+	if !prefixed {
+		if xuid, err := strconv.ParseUint(s, 10, 64); err == nil {
+			return xuid, nil
+		}
+	}
+	xuid, err := strconv.ParseUint(h, 16, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid xuid %q", s)
 	}

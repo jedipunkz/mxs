@@ -18,7 +18,7 @@ make build   # produces ./mxs
 
 ```
 mxs bedrock <gamertag>                             Bedrock player info
-mxs bedrock -r <xuid | floodgate uuid>             Bedrock player info
+mxs bedrock -r <xuid | hex xuid | floodgate uuid>  Bedrock player info
 mxs java <account name>                            Java player info
 mxs java -r <uuid>                                 Java player info
 ```

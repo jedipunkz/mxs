@@ -12,7 +12,7 @@ func TestUUIDFormat(t *testing.T) {
 	if _, err := parseFloodgateUUID("069a79f4-44e9-4726-a5be-fca90e38aaf5"); err == nil {
 		t.Error("parseFloodgateUUID accepted a non-floodgate uuid")
 	}
-	for _, s := range []string{"2535414915229641", "00000000-0000-0000-0009-01f2496167c9"} {
+	for _, s := range []string{"2535414915229641", "901f2496167c9", "901F2496167C9", "0x901f2496167c9", "00000000-0000-0000-0009-01f2496167c9"} {
 		if got, err := parseXUID(s); err != nil || got != 2535414915229641 {
 			t.Errorf("parseXUID(%s) = %d, %v", s, got, err)
 		}
