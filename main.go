@@ -4,7 +4,6 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -15,27 +14,18 @@ import (
 )
 
 const usage = `usage:
-  mxs bedrock <gamertag>                             Bedrock player info
-  mxs bedrock -r <xuid | hex xuid | floodgate uuid>  Bedrock player info
-  mxs java <account name>                            Java player info
-  mxs java -r <uuid>                                 Java player info`
+  mxs bedrock <gamertag>                                       Bedrock player info
+  mxs java <account name>                                      Java player info
+  mxs reverse <xuid | hex xuid | java uuid | floodgate uuid>   Bedrock or Java player info`
 
 var client = &http.Client{Timeout: 10 * time.Second}
 
 func main() {
-	if len(os.Args) < 2 {
+	if len(os.Args) != 3 {
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(2)
 	}
-	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
-	fs.Usage = func() { fmt.Fprintln(os.Stderr, usage) }
-	reverse := fs.Bool("r", false, "reverse lookup")
-	_ = fs.Parse(os.Args[2:]) // ExitOnError: Parse exits instead of returning an error
-	if fs.NArg() != 1 {
-		fs.Usage()
-		os.Exit(2)
-	}
-	out, err := run(os.Args[1], fs.Arg(0), *reverse)
+	out, err := run(os.Args[1], os.Args[2])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "mxs:", err)
 		os.Exit(1)
@@ -43,9 +33,20 @@ func main() {
 	fmt.Println(out)
 }
 
-func run(cmd, arg string, reverse bool) (string, error) {
-	switch {
-	case cmd == "bedrock" && reverse:
+func run(cmd, arg string) (string, error) {
+	switch cmd {
+	case "bedrock":
+		xuid, err := bedrockXUID(arg)
+		if err != nil {
+			return "", err
+		}
+		return bedrockInfo(arg, xuid), nil
+	case "java":
+		return javaProfile("https://api.mojang.com/users/profiles/minecraft/"+url.PathEscape(arg), fmt.Sprintf("java player %q", arg))
+	case "reverse":
+		if h, ok := javaUUID(arg); ok {
+			return javaProfile("https://sessionserver.mojang.com/session/minecraft/profile/"+h, "java uuid "+arg)
+		}
 		xuid, err := parseXUID(arg)
 		if err != nil {
 			return "", err
@@ -55,23 +56,19 @@ func run(cmd, arg string, reverse bool) (string, error) {
 			return "", err
 		}
 		return bedrockInfo(gamertag, xuid), nil
-	case cmd == "bedrock":
-		xuid, err := bedrockXUID(arg)
-		if err != nil {
-			return "", err
-		}
-		return bedrockInfo(arg, xuid), nil
-	case cmd == "java" && reverse:
-		h := strings.ReplaceAll(arg, "-", "")
-		if _, err := hex.DecodeString(h); err != nil || len(h) != 32 {
-			return "", fmt.Errorf("invalid uuid %q", arg)
-		}
-		return javaProfile("https://sessionserver.mojang.com/session/minecraft/profile/"+h, "java uuid "+arg)
-	case cmd == "java":
-		return javaProfile("https://api.mojang.com/users/profiles/minecraft/"+url.PathEscape(arg), fmt.Sprintf("java player %q", arg))
 	default:
 		return "", fmt.Errorf("unknown command %q\n%s", cmd, usage)
 	}
+}
+
+// javaUUID returns the undashed hex of s if s is a UUID that is not a Floodgate UUID.
+// A hex XUID is at most 16 digits, so it never reaches 32.
+func javaUUID(s string) (string, bool) {
+	h := strings.ToLower(strings.ReplaceAll(s, "-", ""))
+	if _, err := hex.DecodeString(h); err != nil || len(h) != 32 || strings.HasPrefix(h, strings.Repeat("0", 16)) {
+		return "", false
+	}
+	return h, true
 }
 
 func bedrockInfo(gamertag string, xuid uint64) string {
@@ -81,7 +78,7 @@ func bedrockInfo(gamertag string, xuid uint64) string {
 // parseXUID accepts a decimal XUID, a hex XUID, or a Floodgate UUID.
 // ponytail: digits-only input is read as decimal; a digits-only hex XUID needs the 0x prefix.
 func parseXUID(s string) (uint64, error) {
-	if strings.Contains(s, "-") {
+	if strings.Contains(s, "-") || len(s) == 32 {
 		return parseFloodgateUUID(s)
 	}
 	h, prefixed := strings.CutPrefix(strings.ToLower(s), "0x")
