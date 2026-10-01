@@ -15,12 +15,10 @@ import (
 )
 
 const usage = `usage:
-  mxs bedrock <gamertag>              Bedrock XUID
-  mxs bedrock -r <xuid>               Bedrock gamertag
-  mxs java <account name>             Java UUID
-  mxs java -r <uuid>                  Java account name
-  mxs floodgate <gamertag>            Floodgate UUID
-  mxs floodgate -r <floodgate uuid>   Bedrock gamertag`
+  mxs bedrock <gamertag>                             Bedrock player info
+  mxs bedrock -r <xuid | hex xuid | floodgate uuid>  Bedrock player info
+  mxs java <account name>                            Java player info
+  mxs java -r <uuid>                                 Java player info`
 
 var client = &http.Client{Timeout: 10 * time.Second}
 
@@ -48,30 +46,55 @@ func main() {
 func run(cmd, arg string, reverse bool) (string, error) {
 	switch {
 	case cmd == "bedrock" && reverse:
-		xuid, err := strconv.ParseUint(arg, 10, 64)
-		if err != nil {
-			return "", fmt.Errorf("invalid xuid %q", arg)
-		}
-		return bedrockGamertag(xuid)
-	case cmd == "bedrock":
-		xuid, err := bedrockXUID(arg)
-		return strconv.FormatUint(xuid, 10), err
-	case cmd == "floodgate" && reverse:
-		xuid, err := parseFloodgateUUID(arg)
+		xuid, err := parseXUID(arg)
 		if err != nil {
 			return "", err
 		}
-		return bedrockGamertag(xuid)
-	case cmd == "floodgate":
+		gamertag, err := bedrockGamertag(xuid)
+		if err != nil {
+			return "", err
+		}
+		return bedrockInfo(gamertag, xuid), nil
+	case cmd == "bedrock":
 		xuid, err := bedrockXUID(arg)
-		return floodgateUUID(xuid), err
+		if err != nil {
+			return "", err
+		}
+		return bedrockInfo(arg, xuid), nil
 	case cmd == "java" && reverse:
-		return javaName(arg)
+		h := strings.ReplaceAll(arg, "-", "")
+		if _, err := hex.DecodeString(h); err != nil || len(h) != 32 {
+			return "", fmt.Errorf("invalid uuid %q", arg)
+		}
+		return javaProfile("https://sessionserver.mojang.com/session/minecraft/profile/"+h, "java uuid "+arg)
 	case cmd == "java":
-		return javaUUID(arg)
+		return javaProfile("https://api.mojang.com/users/profiles/minecraft/"+url.PathEscape(arg), fmt.Sprintf("java player %q", arg))
 	default:
 		return "", fmt.Errorf("unknown command %q\n%s", cmd, usage)
 	}
+}
+
+func bedrockInfo(gamertag string, xuid uint64) string {
+	return fmt.Sprintf("Gamertag: %s\nXUID(DEC): %d\nXUID(HEX): %x\nFloodgate UUID: %s", gamertag, xuid, xuid, floodgateUUID(xuid))
+}
+
+// parseXUID accepts a decimal XUID, a hex XUID, or a Floodgate UUID.
+// ponytail: digits-only input is read as decimal; a digits-only hex XUID needs the 0x prefix.
+func parseXUID(s string) (uint64, error) {
+	if strings.Contains(s, "-") {
+		return parseFloodgateUUID(s)
+	}
+	h, prefixed := strings.CutPrefix(strings.ToLower(s), "0x")
+	if !prefixed {
+		if xuid, err := strconv.ParseUint(s, 10, 64); err == nil {
+			return xuid, nil
+		}
+	}
+	xuid, err := strconv.ParseUint(h, 16, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid xuid %q", s)
+	}
+	return xuid, nil
 }
 
 // ponytail: GeyserMC API only knows gamertags that have joined a Geyser server; full coverage needs Xbox Live auth.
@@ -101,34 +124,19 @@ func bedrockGamertag(xuid uint64) (string, error) {
 	return res.Gamertag, nil
 }
 
-func javaName(uuid string) (string, error) {
-	h := strings.ReplaceAll(uuid, "-", "")
-	if _, err := hex.DecodeString(h); err != nil || len(h) != 32 {
-		return "", fmt.Errorf("invalid uuid %q", uuid)
-	}
+// javaProfile fetches a Mojang profile; both endpoints return {"id", "name"}.
+func javaProfile(u, what string) (string, error) {
 	var res struct {
+		ID   string `json:"id"`
 		Name string `json:"name"`
 	}
-	if err := getJSON("https://sessionserver.mojang.com/session/minecraft/profile/"+h, &res); err != nil {
-		return "", fmt.Errorf("java uuid %s: %w", uuid, err)
+	if err := getJSON(u, &res); err != nil {
+		return "", fmt.Errorf("%s: %w", what, err)
 	}
-	if res.Name == "" {
-		return "", fmt.Errorf("java uuid %s not found", uuid)
+	if len(res.ID) != 32 || res.Name == "" {
+		return "", fmt.Errorf("%s not found", what)
 	}
-	return res.Name, nil
-}
-
-func javaUUID(name string) (string, error) {
-	var res struct {
-		ID string `json:"id"`
-	}
-	if err := getJSON("https://api.mojang.com/users/profiles/minecraft/"+url.PathEscape(name), &res); err != nil {
-		return "", fmt.Errorf("java player %q: %w", name, err)
-	}
-	if len(res.ID) != 32 {
-		return "", fmt.Errorf("java player %q not found", name)
-	}
-	return dashed(res.ID), nil
+	return fmt.Sprintf("Name: %s\nUUID: %s", res.Name, dashed(res.ID)), nil
 }
 
 // floodgateUUID matches Floodgate's `new UUID(0, xuid)`.

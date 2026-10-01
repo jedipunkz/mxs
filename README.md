@@ -17,27 +17,31 @@ make build   # produces ./mxs
 ## Usage
 
 ```
-mxs bedrock <gamertag>              Bedrock XUID
-mxs bedrock -r <xuid>               Bedrock gamertag
-mxs java <account name>             Java UUID
-mxs java -r <uuid>                  Java account name
-mxs floodgate <gamertag>            Floodgate UUID
-mxs floodgate -r <floodgate uuid>   Bedrock gamertag
+mxs bedrock <gamertag>                             Bedrock player info
+mxs bedrock -r <xuid | hex xuid | floodgate uuid>  Bedrock player info
+mxs java <account name>                            Java player info
+mxs java -r <uuid>                                 Java player info
 ```
 
 `-r` (reverse) must come before the argument.
 
 ```console
-$ mxs java Notch
-069a79f4-44e9-4726-a5be-fca90e38aaf5
-$ mxs java -r 069a79f4-44e9-4726-a5be-fca90e38aaf5
-Notch
 $ mxs bedrock Dream
-2535414915229641
-$ mxs floodgate Dream
-00000000-0000-0000-0009-01f2496167c9
-$ mxs floodgate -r 00000000-0000-0000-0009-01f2496167c9
-Dream
+Gamertag: Dream
+XUID(DEC): 2535414915229641
+XUID(HEX): 901f2496167c9
+Floodgate UUID: 00000000-0000-0000-0009-01f2496167c9
+$ mxs bedrock -r 00000000-0000-0000-0009-01f2496167c9
+Gamertag: Dream
+XUID(DEC): 2535414915229641
+XUID(HEX): 901f2496167c9
+Floodgate UUID: 00000000-0000-0000-0009-01f2496167c9
+$ mxs java Notch
+Name: Notch
+UUID: 069a79f4-44e9-4726-a5be-fca90e38aaf5
+$ mxs java -r 069a79f4-44e9-4726-a5be-fca90e38aaf5
+Name: Notch
+UUID: 069a79f4-44e9-4726-a5be-fca90e38aaf5
 ```
 
 ## Data sources
