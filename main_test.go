@@ -35,3 +35,9 @@ func TestUUIDFormat(t *testing.T) {
 		t.Errorf("dashed = %s, want %s", got, want)
 	}
 }
+
+func TestColorize(t *testing.T) {
+	if got, want := colorize("Name: Notch\nUUID: 069a79f4"), "\x1b[36mName:\x1b[0m \x1b[1mNotch\x1b[0m\n\x1b[36mUUID:\x1b[0m \x1b[1m069a79f4\x1b[0m"; got != want {
+		t.Errorf("colorize = %q, want %q", got, want)
+	}
+}

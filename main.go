@@ -27,10 +27,44 @@ func main() {
 	}
 	out, err := run(os.Args[1], os.Args[2])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "mxs:", err)
+		prefix := "mxs:"
+		if useColor(os.Stderr) {
+			prefix = red + prefix + reset
+		}
+		fmt.Fprintln(os.Stderr, prefix, err)
 		os.Exit(1)
 	}
+	if useColor(os.Stdout) {
+		out = colorize(out)
+	}
 	fmt.Println(out)
+}
+
+const (
+	cyan  = "\x1b[36m"
+	red   = "\x1b[31m"
+	bold  = "\x1b[1m"
+	reset = "\x1b[0m"
+)
+
+// useColor reports whether f is a terminal and color is not disabled via NO_COLOR or TERM=dumb.
+func useColor(f *os.File) bool {
+	if os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
+		return false
+	}
+	fi, err := f.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+}
+
+// colorize renders each "Label: value" line with a cyan label and a bold value.
+func colorize(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		if label, value, ok := strings.Cut(line, ": "); ok {
+			lines[i] = cyan + label + ":" + reset + " " + bold + value + reset
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func run(cmd, arg string) (string, error) {
