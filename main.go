@@ -2,28 +2,42 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
 const usage = `usage:
-  mxs bedrock <gamertag>       Bedrock XUID
-  mxs java <account name>      Java UUID
-  mxs floodgate <gamertag>     Floodgate UUID`
+  mxs bedrock <gamertag>              Bedrock XUID
+  mxs bedrock -r <xuid>               Bedrock gamertag
+  mxs java <account name>             Java UUID
+  mxs java -r <uuid>                  Java account name
+  mxs floodgate <gamertag>            Floodgate UUID
+  mxs floodgate -r <floodgate uuid>   Bedrock gamertag`
 
 var client = &http.Client{Timeout: 10 * time.Second}
 
 func main() {
-	if len(os.Args) != 3 {
+	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(2)
 	}
-	out, err := run(os.Args[1], os.Args[2])
+	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
+	fs.Usage = func() { fmt.Fprintln(os.Stderr, usage) }
+	reverse := fs.Bool("r", false, "reverse lookup")
+	fs.Parse(os.Args[2:])
+	if fs.NArg() != 1 {
+		fs.Usage()
+		os.Exit(2)
+	}
+	out, err := run(os.Args[1], fs.Arg(0), *reverse)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "mxs:", err)
 		os.Exit(1)
@@ -31,16 +45,30 @@ func main() {
 	fmt.Println(out)
 }
 
-func run(cmd, name string) (string, error) {
-	switch cmd {
-	case "bedrock":
-		xuid, err := bedrockXUID(name)
+func run(cmd, arg string, reverse bool) (string, error) {
+	switch {
+	case cmd == "bedrock" && reverse:
+		xuid, err := strconv.ParseUint(arg, 10, 64)
+		if err != nil {
+			return "", fmt.Errorf("invalid xuid %q", arg)
+		}
+		return bedrockGamertag(xuid)
+	case cmd == "bedrock":
+		xuid, err := bedrockXUID(arg)
 		return strconv.FormatUint(xuid, 10), err
-	case "floodgate":
-		xuid, err := bedrockXUID(name)
+	case cmd == "floodgate" && reverse:
+		xuid, err := parseFloodgateUUID(arg)
+		if err != nil {
+			return "", err
+		}
+		return bedrockGamertag(xuid)
+	case cmd == "floodgate":
+		xuid, err := bedrockXUID(arg)
 		return floodgateUUID(xuid), err
-	case "java":
-		return javaUUID(name)
+	case cmd == "java" && reverse:
+		return javaName(arg)
+	case cmd == "java":
+		return javaUUID(arg)
 	default:
 		return "", fmt.Errorf("unknown command %q\n%s", cmd, usage)
 	}
@@ -60,6 +88,36 @@ func bedrockXUID(gamertag string) (uint64, error) {
 	return res.XUID, nil
 }
 
+func bedrockGamertag(xuid uint64) (string, error) {
+	var res struct {
+		Gamertag string `json:"gamertag"`
+	}
+	if err := getJSON("https://api.geysermc.org/v2/xbox/gamertag/"+strconv.FormatUint(xuid, 10), &res); err != nil {
+		return "", fmt.Errorf("bedrock xuid %d: %w", xuid, err)
+	}
+	if res.Gamertag == "" {
+		return "", fmt.Errorf("bedrock xuid %d not found", xuid)
+	}
+	return res.Gamertag, nil
+}
+
+func javaName(uuid string) (string, error) {
+	h := strings.ReplaceAll(uuid, "-", "")
+	if _, err := hex.DecodeString(h); err != nil || len(h) != 32 {
+		return "", fmt.Errorf("invalid uuid %q", uuid)
+	}
+	var res struct {
+		Name string `json:"name"`
+	}
+	if err := getJSON("https://sessionserver.mojang.com/session/minecraft/profile/"+h, &res); err != nil {
+		return "", fmt.Errorf("java uuid %s: %w", uuid, err)
+	}
+	if res.Name == "" {
+		return "", fmt.Errorf("java uuid %s not found", uuid)
+	}
+	return res.Name, nil
+}
+
 func javaUUID(name string) (string, error) {
 	var res struct {
 		ID string `json:"id"`
@@ -76,6 +134,19 @@ func javaUUID(name string) (string, error) {
 // floodgateUUID matches Floodgate's `new UUID(0, xuid)`.
 func floodgateUUID(xuid uint64) string {
 	return dashed(fmt.Sprintf("%016x%016x", 0, xuid))
+}
+
+// parseFloodgateUUID is the inverse of floodgateUUID.
+func parseFloodgateUUID(uuid string) (uint64, error) {
+	h := strings.ReplaceAll(uuid, "-", "")
+	if len(h) != 32 || h[:16] != strings.Repeat("0", 16) {
+		return 0, fmt.Errorf("invalid floodgate uuid %q", uuid)
+	}
+	xuid, err := strconv.ParseUint(h[16:], 16, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid floodgate uuid %q", uuid)
+	}
+	return xuid, nil
 }
 
 func dashed(h string) string {
