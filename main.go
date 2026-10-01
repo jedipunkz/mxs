@@ -32,7 +32,7 @@ func main() {
 	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
 	fs.Usage = func() { fmt.Fprintln(os.Stderr, usage) }
 	reverse := fs.Bool("r", false, "reverse lookup")
-	fs.Parse(os.Args[2:])
+	_ = fs.Parse(os.Args[2:]) // ExitOnError: Parse exits instead of returning an error
 	if fs.NArg() != 1 {
 		fs.Usage()
 		os.Exit(2)
@@ -158,7 +158,7 @@ func getJSON(u string, v any) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // read-only body: close error carries nothing actionable
 	// Mojang answers not-found with 204/404 and an empty or error body; callers detect the zero value.
 	if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound {
 		return nil
