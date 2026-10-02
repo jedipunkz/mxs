@@ -54,7 +54,7 @@ UUID: 069a79f4-44e9-4726-a5be-fca90e38aaf5
 
 - Bedrock lookups only work for players cached by GeyserMC, i.e. players who have joined a Geyser server at least once. Others return `HTTP 503 Unable to find user in our cache`.
 - A Floodgate UUID is derived from the XUID as `new UUID(0, xuid)`, so it always starts with `00000000-0000-0000-`. Players with linked Java accounts appear on Floodgate servers with their Java UUID instead; use `mxs reverse` for those.
-- Output is colored (cyan labels, bold values, red `mxs:` error prefix) only when writing to a terminal. Set `NO_COLOR=1` or `TERM=dumb` to disable it.
+- Output is colored with the Tokyo Night palette (each field in its own color, a darker shade for the label and bold for the value, red `mxs:` error prefix; requires a truecolor terminal) only when writing to a terminal. Set `NO_COLOR=1` or `TERM=dumb` to disable it.
 
 ## Development
 

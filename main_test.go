@@ -37,7 +37,7 @@ func TestUUIDFormat(t *testing.T) {
 }
 
 func TestColorize(t *testing.T) {
-	if got, want := colorize("Name: Notch\nUUID: 069a79f4"), "\x1b[36mName:\x1b[0m \x1b[1mNotch\x1b[0m\n\x1b[36mUUID:\x1b[0m \x1b[1m069a79f4\x1b[0m"; got != want {
+	if got, want := colorize("Name: Notch\nUUID: 069a79f4"), "\x1b[38;2;118;154;79mName:\x1b[0m \x1b[1m\x1b[38;2;158;206;106mNotch\x1b[0m\n\x1b[38;2;140;115;185mUUID:\x1b[0m \x1b[1m\x1b[38;2;187;154;247m069a79f4\x1b[0m"; got != want {
 		t.Errorf("colorize = %q, want %q", got, want)
 	}
 }
