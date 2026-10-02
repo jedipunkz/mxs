@@ -3,24 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>mxs</title>
+    <title>Minecraft XUID/UUID Search</title>
     <meta name="description" content="Look up Minecraft player IDs: Bedrock XUID, Java UUID, and Floodgate UUID." />
   </head>
   <body>
     <main>
-      <h1>mxs</h1>
+      <h1>Minecraft XUID/UUID Search</h1>
       <p>Look up Minecraft player IDs: Bedrock XUID, Java UUID, and Floodgate UUID.</p>
       <form>
         <label>
           Command
           <select name="cmd">
-            <option value="bedrock">bedrock — gamertag</option>
-            <option value="java">java — account name</option>
-            <option value="reverse">reverse — xuid / hex xuid / java uuid / floodgate uuid</option>
+            <option value="bedrock" data-query="Gamertag">Bedrock</option>
+            <option value="java" data-query="Java Profile Name">Java</option>
+            <option value="reverse" data-query="Dec XUID / HEX XUID / Java UUID / Floodgate UUID">Reverse</option>
           </select>
         </label>
         <label>
-          Query
+          <span id="query">Gamertag</span>
           <input name="arg" required autocomplete="off" spellcheck="false" />
         </label>
         <button>Look up</button>
@@ -39,6 +39,13 @@
       const form = document.querySelector("form")!;
       const out = document.querySelector("#out")!;
       const button = form.querySelector("button")!;
+      const select = form.querySelector("select")!;
+      const query = document.querySelector("#query")!;
+
+      // The query label names what the selected command expects (also after the browser restores the selection).
+      const syncQuery = () => (query.textContent = select.selectedOptions[0].dataset.query!);
+      select.addEventListener("change", syncQuery);
+      syncQuery();
 
       form.addEventListener("submit", async (ev) => {
         ev.preventDefault();
