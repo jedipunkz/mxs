@@ -27,10 +27,60 @@ func main() {
 	}
 	out, err := run(os.Args[1], os.Args[2])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "mxs:", err)
+		prefix := "mxs:"
+		if useColor(os.Stderr) {
+			prefix = red + prefix + reset
+		}
+		fmt.Fprintln(os.Stderr, prefix, err)
 		os.Exit(1)
 	}
+	if useColor(os.Stdout) {
+		out = colorize(out)
+	}
 	fmt.Println(out)
+}
+
+// Tokyo Night palette as 24-bit truecolor escapes.
+const (
+	red   = "\x1b[38;2;247;118;142m" // #f7768e
+	bold  = "\x1b[1m"
+	reset = "\x1b[0m"
+)
+
+// labelColors gives each output field its own Tokyo Night color (RGB).
+var labelColors = map[string][3]int{
+	"Name":           {158, 206, 106}, // green #9ece6a
+	"UUID":           {187, 154, 247}, // magenta #bb9af7
+	"Gamertag":       {122, 162, 247}, // blue #7aa2f7
+	"XUID(DEC)":      {255, 158, 100}, // orange #ff9e64
+	"XUID(HEX)":      {224, 175, 104}, // yellow #e0af68
+	"Floodgate UUID": {125, 207, 255}, // cyan #7dcfff
+}
+
+// fg returns a truecolor foreground escape for c scaled by pct percent.
+func fg(c [3]int, pct int) string {
+	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm", c[0]*pct/100, c[1]*pct/100, c[2]*pct/100)
+}
+
+// useColor reports whether f is a terminal and color is not disabled via NO_COLOR or TERM=dumb.
+func useColor(f *os.File) bool {
+	if os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
+		return false
+	}
+	fi, err := f.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+}
+
+// colorize renders each "Label: value" line with the label in a darker shade of its color and the value in bold.
+func colorize(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		label, value, ok := strings.Cut(line, ": ")
+		if c, known := labelColors[label]; ok && known {
+			lines[i] = fg(c, 75) + label + ":" + reset + " " + bold + fg(c, 100) + value + reset
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func run(cmd, arg string) (string, error) {
