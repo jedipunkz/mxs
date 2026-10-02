@@ -2,6 +2,8 @@
 
 A CLI to look up Minecraft player IDs: Bedrock XUID, Java UUID, and Floodgate UUID.
 
+Web version: https://mxs-roan.vercel.app/
+
 ## Install
 
 ```sh
