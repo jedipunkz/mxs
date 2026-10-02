@@ -1,0 +1,17 @@
+{
+  "name": "mxs-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "test": "node --test src/mxs.test.ts"
+  },
+  "dependencies": {
+    "astro": "7.3.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1"
+  }
+}

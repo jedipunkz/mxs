@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/mojang/api/:path*", "destination": "https://api.mojang.com/:path*" },
+    { "source": "/mojang/session/:path*", "destination": "https://sessionserver.mojang.com/:path*" }
+  ]
+}
