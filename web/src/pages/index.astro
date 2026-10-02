@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>mxs</title>
+    <meta name="description" content="Look up Minecraft player IDs: Bedrock XUID, Java UUID, and Floodgate UUID." />
+  </head>
+  <body>
+    <main>
+      <h1>mxs</h1>
+      <p>Look up Minecraft player IDs: Bedrock XUID, Java UUID, and Floodgate UUID.</p>
+      <form>
+        <label>
+          Command
+          <select name="cmd">
+            <option value="bedrock">bedrock — gamertag</option>
+            <option value="java">java — account name</option>
+            <option value="reverse">reverse — xuid / hex xuid / java uuid / floodgate uuid</option>
+          </select>
+        </label>
+        <label>
+          Query
+          <input name="arg" required autocomplete="off" spellcheck="false" />
+        </label>
+        <button>Look up</button>
+      </form>
+      <pre id="out" aria-live="polite"></pre>
+      <p class="note">
+        Bedrock lookups only work for players who have joined a Geyser server at least once.
+        Data: <a href="https://api.mojang.com">Mojang API</a>, <a href="https://api.geysermc.org/v2/docs">GeyserMC Global API</a>.
+        <a href="https://github.com/jedipunkz/mxs">Source</a>.
+      </p>
+    </main>
+
+    <script>
+      import { run } from "../mxs.ts";
+
+      const form = document.querySelector("form")!;
+      const out = document.querySelector("#out")!;
+      const button = form.querySelector("button")!;
+
+      form.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const data = new FormData(form);
+        button.disabled = true;
+        out.replaceChildren("…");
+        try {
+          const lines = await run(String(data.get("cmd")), String(data.get("arg")).trim());
+          out.replaceChildren(
+            ...lines.map(([label, value]) => {
+              const row = document.createElement("div");
+              row.dataset.label = label;
+              const l = document.createElement("span");
+              l.className = "label";
+              l.textContent = label + ":";
+              const v = document.createElement("b");
+              v.textContent = value;
+              row.append(l, " ", v);
+              return row;
+            }),
+          );
+        } catch (e) {
+          const p = document.createElement("span");
+          p.className = "err";
+          p.textContent = "mxs:";
+          out.replaceChildren(p, " " + (e as Error).message);
+        } finally {
+          button.disabled = false;
+        }
+      });
+    </script>
+
+    <style is:global>
+      /* Tokyo Night */
+      :root {
+        color-scheme: dark;
+        --bg: #1a1b26;
+        --fg: #c0caf5;
+        --muted: #565f89;
+        --red: #f7768e;
+        --panel: #24283b;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      main {
+        max-width: 48rem;
+        margin: 0 auto;
+        padding: 2rem 16px;
+      }
+      h1 {
+        color: #7aa2f7;
+        margin: 0;
+      }
+      form {
+        display: grid;
+        gap: 0.75rem;
+      }
+      label {
+        display: grid;
+        gap: 0.25rem;
+        color: var(--muted);
+      }
+      select,
+      input,
+      button {
+        font: inherit;
+        color: var(--fg);
+        background: var(--panel);
+        border: 1px solid var(--muted);
+        border-radius: 4px;
+        padding: 0.5rem;
+        min-width: 0;
+      }
+      button {
+        cursor: pointer;
+        color: var(--bg);
+        background: #7aa2f7;
+        border-color: #7aa2f7;
+      }
+      button:disabled {
+        opacity: 0.6;
+      }
+      pre {
+        background: var(--panel);
+        padding: 1rem;
+        border-radius: 4px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        min-height: 1.6em;
+      }
+      .err {
+        color: var(--red);
+      }
+      .note {
+        color: var(--muted);
+        font-size: 0.875rem;
+      }
+      a {
+        color: #7dcfff;
+      }
+      /* Each field in its own color: darker shade for the label, bold for the value (as in the CLI). */
+      [data-label] {
+        color: var(--c);
+      }
+      .label {
+        color: color-mix(in srgb, var(--c) 75%, black);
+      }
+      [data-label="Name"] { --c: #9ece6a; }
+      [data-label="UUID"] { --c: #bb9af7; }
+      [data-label="Gamertag"] { --c: #7aa2f7; }
+      [data-label="XUID(DEC)"] { --c: #ff9e64; }
+      [data-label="XUID(HEX)"] { --c: #e0af68; }
+      [data-label="Floodgate UUID"] { --c: #7dcfff; }
+    </style>
+  </body>
+</html>
